@@ -1,3 +1,4 @@
+pub mod aggregator;
 mod error;
 mod events;
 mod result;
