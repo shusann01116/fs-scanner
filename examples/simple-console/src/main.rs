@@ -34,10 +34,10 @@ async fn main() {
 
     if args.watch {
         println!("Watching for changes...");
-        let monitor_clone = monitor.clone();
-        let mut updates = monitor_clone.start().expect("Failed to start monitoring");
+        let mut updates = monitor.start().expect("Failed to start monitoring");
 
         while let Some(update) = updates.recv().await {
+            let update = update;
             println!(
                 "Change detected at '{}': new total size = {} bytes",
                 update.path.display(),
