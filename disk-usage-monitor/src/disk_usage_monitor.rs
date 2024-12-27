@@ -38,6 +38,7 @@ impl DiskUsageMonitor {
     }
 
     /// Returns the total size of all files under the specified directory
+    /// This method does not actually scan the directory, it just returns the size of the files that have been found by the scanner.
     pub async fn get_directory_size<P: AsRef<Path>>(&self, directory: P) -> u64 {
         self.aggregator.get_directory_size(directory).await
     }

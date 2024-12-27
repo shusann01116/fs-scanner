@@ -11,14 +11,14 @@ use crate::{error::ScannerError, events::FileEvent, result::Result, streams::Sca
 #[derive(Default, Debug, Clone)]
 pub struct Scanner {
     directory: Option<Arc<PathBuf>>,
-    watching: bool,
+    watch: bool,
 }
 
 impl Scanner {
     pub fn new() -> Self {
         Self {
             directory: None,
-            watching: false,
+            watch: false,
         }
     }
 
@@ -28,7 +28,7 @@ impl Scanner {
     }
 
     pub fn watch_changes(mut self) -> Self {
-        self.watching = true;
+        self.watch = true;
         self
     }
 
@@ -38,7 +38,7 @@ impl Scanner {
             .as_ref()
             .ok_or(ScannerError::NoDirectorySpecified)?
             .clone();
-        let watching = self.watching;
+        let watch = self.watch;
         let (tx, rx) = mpsc::unbounded_channel();
         let event_stream = ScannerEventStream::new(rx);
 
@@ -50,8 +50,8 @@ impl Scanner {
 
             // after initial scan completes, shift to watching for changes
             // TODO: handle error properly
-            if watching {
-                if let Err(e) = watch_fs_loop(directory.as_ref(), tx.clone()).await {
+            if watch {
+                if let Err(e) = Self::watch_fs_loop(directory.as_ref(), tx.clone()).await {
                     eprintln!("Error watching filesystem: {}", e);
                 }
             }
@@ -95,14 +95,14 @@ impl Scanner {
             Self::scan_directory(&directory, tx).await.unwrap();
         });
     }
-}
 
-#[allow(unused)]
-async fn watch_fs_loop<P: AsRef<Path>>(
-    directory: P,
-    tx: mpsc::UnboundedSender<FileEvent>,
-) -> Result<()> {
-    todo!()
+    #[allow(unused)]
+    async fn watch_fs_loop<P: AsRef<Path>>(
+        directory: P,
+        tx: mpsc::UnboundedSender<FileEvent>,
+    ) -> Result<()> {
+        todo!()
+    }
 }
 
 #[cfg(test)]
