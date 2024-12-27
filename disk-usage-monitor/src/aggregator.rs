@@ -9,7 +9,7 @@ use tokio::sync::{mpsc, RwLock};
 
 use crate::{events::ScanEvent, streams::ScannerEventStream};
 
-#[derive(Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Aggregator {
     file_sizes: Arc<RwLock<HashMap<PathBuf, u64>>>,
 }

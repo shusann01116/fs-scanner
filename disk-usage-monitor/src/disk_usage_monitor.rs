@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// Monitors disk usage of a directory and its subdirectories
-#[derive(Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct DiskUsageMonitor {
     scanner: Scanner,
     aggregator: Aggregator,
@@ -36,8 +36,8 @@ impl DiskUsageMonitor {
     }
 
     /// Starts monitoring the directory and returns a stream of updates
-    pub fn start(self) -> Result<mpsc::UnboundedReceiver<DirectoryUpdate>> {
-        let stream = self.scanner.start()?;
+    pub fn start(&self) -> Result<mpsc::UnboundedReceiver<DirectoryUpdate>> {
+        let stream = self.scanner.clone().start()?;
         Ok(self.aggregator.process_events(stream))
     }
 

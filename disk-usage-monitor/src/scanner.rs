@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 
 use crate::{error::ScannerError, events::ScanEvent, result::Result, streams::ScannerEventStream};
 
-#[derive(Debug, Default)]
+#[derive(Default, Debug, Clone)]
 pub struct Scanner {
     directory: Option<Arc<PathBuf>>,
     watching: bool,
