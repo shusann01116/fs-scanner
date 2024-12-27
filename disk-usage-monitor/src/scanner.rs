@@ -32,20 +32,25 @@ impl Scanner {
         self
     }
 
-    pub fn start(self) -> Result<ScannerEventStream> {
-        let directory = self.directory.ok_or(ScannerError::NoDirectorySpecified)?;
+    pub fn start(&self) -> Result<ScannerEventStream> {
+        let directory = self
+            .directory
+            .as_ref()
+            .ok_or(ScannerError::NoDirectorySpecified)?
+            .clone();
+        let watching = self.watching;
         let (tx, rx) = mpsc::unbounded_channel();
         let event_stream = ScannerEventStream::new(rx);
 
         tokio::spawn(async move {
             // TODO: handle error properly
-            scan_directory(directory.as_ref(), tx.clone())
+            Self::scan_directory(directory.as_ref(), tx.clone())
                 .await
                 .unwrap();
 
             // after initial scan completes, shift to watching for changes
             // TODO: handle error properly
-            if self.watching {
+            if watching {
                 if let Err(e) = watch_fs_loop(directory.as_ref(), tx.clone()).await {
                     eprintln!("Error watching filesystem: {}", e);
                 }
@@ -54,42 +59,42 @@ impl Scanner {
 
         Ok(event_stream)
     }
-}
 
-async fn scan_directory<P: AsRef<Path>>(
-    directory: P,
-    tx: mpsc::UnboundedSender<ScanEvent>,
-) -> Result<()> {
-    let files = fs::read_dir(directory)?;
+    async fn scan_directory<P: AsRef<Path>>(
+        directory: P,
+        tx: mpsc::UnboundedSender<ScanEvent>,
+    ) -> Result<()> {
+        let files = fs::read_dir(directory)?;
 
-    for file in files {
-        let file = file?;
-        let path = file.path();
-        let metadata = file.metadata()?;
+        for file in files {
+            let file = file?;
+            let path = file.path();
+            let metadata = file.metadata()?;
 
-        if metadata.is_file() {
-            let size = metadata.len();
-            tx.send(ScanEvent::FileFound {
-                path: path.to_owned(),
-                size,
-            })?;
+            if metadata.is_file() {
+                let size = metadata.len();
+                tx.send(ScanEvent::FileFound {
+                    path: path.to_owned(),
+                    size,
+                })?;
+            }
+
+            if metadata.is_dir() {
+                // TODO: handle error properly
+                Self::spawn_scan_directory(path, tx.clone());
+            }
         }
 
-        if metadata.is_dir() {
-            // TODO: handle error properly
-            spawn_scan_directory(path, tx.clone());
-        }
+        Ok(())
     }
 
-    Ok(())
-}
-
-fn spawn_scan_directory<P: AsRef<Path>>(directory: P, tx: mpsc::UnboundedSender<ScanEvent>) {
-    let directory = directory.as_ref().to_owned();
-    let tx = tx.clone();
-    tokio::spawn(async move {
-        scan_directory(&directory, tx).await.unwrap();
-    });
+    fn spawn_scan_directory<P: AsRef<Path>>(directory: P, tx: mpsc::UnboundedSender<ScanEvent>) {
+        let directory = directory.as_ref().to_owned();
+        let tx = tx.clone();
+        tokio::spawn(async move {
+            Self::scan_directory(&directory, tx).await.unwrap();
+        });
+    }
 }
 
 #[allow(unused)]
