@@ -3,7 +3,7 @@ use std::io;
 use thiserror::Error;
 use tokio::sync::mpsc;
 
-use crate::events::ScanEvent;
+use crate::events::FileEvent;
 
 #[derive(Debug, Error)]
 pub enum ScannerError {
@@ -12,7 +12,7 @@ pub enum ScannerError {
     #[error("IO error: {0}")]
     IoError(#[from] io::Error),
     #[error("Channel error: {0}")]
-    ChannelError(#[from] mpsc::error::SendError<ScanEvent>),
+    ChannelError(#[from] mpsc::error::SendError<FileEvent>),
     #[error("Other error: {0}")]
     Other(#[from] anyhow::Error),
 }

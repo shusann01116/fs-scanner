@@ -1,11 +1,7 @@
 use std::path::Path;
 
-use tokio::sync::mpsc;
-
 use crate::{
-    aggregator::{Aggregator, DirectoryUpdate},
-    result::Result,
-    scanner::Scanner,
+    aggregator::Aggregator, result::Result, scanner::Scanner, streams::ScannerEventStream,
 };
 
 /// Monitors disk usage of a directory and its subdirectories
@@ -36,7 +32,7 @@ impl DiskUsageMonitor {
     }
 
     /// Starts monitoring the directory and returns a stream of updates
-    pub fn start(&self) -> Result<mpsc::UnboundedReceiver<DirectoryUpdate>> {
+    pub fn start(&self) -> Result<ScannerEventStream> {
         let stream = self.scanner.start()?;
         Ok(self.aggregator.process_events(stream))
     }
@@ -50,7 +46,8 @@ impl DiskUsageMonitor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_tools;
+    use crate::{test_tools, FileEvent};
+    use futures_util::StreamExt;
 
     #[tokio::test]
     async fn test_disk_usage_monitoring() {
@@ -64,9 +61,24 @@ mod tests {
         let mut updates = monitor.start().expect("Failed to start monitoring");
 
         // Wait for some updates
-        while let Some(update) = updates.recv().await {
-            println!("Update received: {:?}", update);
-        }
+        let event_1 = updates.next().await.unwrap();
+        let event_2 = updates.next().await.unwrap();
+        assert_eq!(
+            event_1,
+            FileEvent::FileFound {
+                path: file1_path.clone().into(),
+                size: file1_path.metadata().unwrap().len()
+            }
+        );
+        assert_eq!(
+            event_2,
+            FileEvent::FileFound {
+                path: file2_path.clone().into(),
+                size: file2_path.metadata().unwrap().len()
+            }
+        );
+
+        updates.next().await;
 
         let total_size = monitor.get_directory_size(dir.path()).await;
         assert_eq!(total_size, actual_total_size);

@@ -7,7 +7,7 @@ use std::{
 use futures_util::StreamExt;
 use tokio::sync::{mpsc, RwLock};
 
-use crate::{events::ScanEvent, streams::ScannerEventStream};
+use crate::{events::FileEvent, streams::ScannerEventStream};
 
 #[derive(Default, Debug, Clone)]
 pub struct Aggregator {
@@ -22,57 +22,38 @@ impl Aggregator {
     }
 
     /// Starts processing the scanner events and returns a stream of updates
-    pub fn process_events(
-        &self,
-        mut scanner_stream: ScannerEventStream,
-    ) -> mpsc::UnboundedReceiver<DirectoryUpdate> {
+    pub fn process_events(&self, mut scanner_stream: ScannerEventStream) -> ScannerEventStream {
         let (tx, rx) = mpsc::unbounded_channel();
         let file_sizes = self.file_sizes.clone();
 
         tokio::spawn(async move {
             while let Some(event) = scanner_stream.next().await {
                 let mut sizes = file_sizes.write().await;
-                match event {
-                    ScanEvent::FileFound { path, size } => {
-                        sizes.insert(path.clone(), size);
-                        let update = DirectoryUpdate::new(
-                            &path,
-                            Self::calculate_dir_size(&sizes, path.parent().unwrap()),
-                        );
-                        tx.send(update).unwrap();
+                match &event {
+                    FileEvent::FileFound { path, size } => {
+                        sizes.insert(path.clone(), *size);
+                        tx.send(event).unwrap();
                     }
-                    ScanEvent::FileAdded { path, size } => {
-                        sizes.insert(path.clone(), size);
-                        let update = DirectoryUpdate::new(
-                            &path,
-                            Self::calculate_dir_size(&sizes, path.parent().unwrap()),
-                        );
-                        tx.send(update).unwrap();
+                    FileEvent::FileAdded { path, size } => {
+                        sizes.insert(path.clone(), *size);
+                        tx.send(event).unwrap();
                     }
-                    ScanEvent::FileRemoved { path } => {
-                        sizes.remove(&path);
-                        let update = DirectoryUpdate::new(
-                            &path,
-                            Self::calculate_dir_size(&sizes, path.parent().unwrap()),
-                        );
-                        tx.send(update).unwrap();
+                    FileEvent::FileRemoved { path } => {
+                        sizes.remove(path);
+                        tx.send(event).unwrap();
                     }
-                    ScanEvent::FileModified { path, size } => {
-                        sizes.insert(path.clone(), size);
-                        let update = DirectoryUpdate::new(
-                            &path,
-                            Self::calculate_dir_size(&sizes, path.parent().unwrap()),
-                        );
-                        tx.send(update).unwrap();
+                    FileEvent::FileModified { path, size } => {
+                        sizes.insert(path.clone(), *size);
+                        tx.send(event).unwrap();
                     }
-                    ScanEvent::InitialScanComplete => {
+                    FileEvent::InitialScanComplete => {
                         // 初期スキャン完了時の処理が必要な場合はここに追加
                     }
                 }
             }
         });
 
-        rx
+        ScannerEventStream::new(rx)
     }
 
     /// Returns the total size of all files under the specified directory
@@ -87,21 +68,6 @@ impl Aggregator {
             .filter(|(path, _)| path.starts_with(directory))
             .map(|(_, size)| size)
             .sum()
-    }
-}
-
-#[derive(Debug)]
-pub struct DirectoryUpdate {
-    pub path: PathBuf,
-    pub total_size: u64,
-}
-
-impl DirectoryUpdate {
-    fn new(path: &Path, total_size: u64) -> Self {
-        Self {
-            path: path.to_owned(),
-            total_size,
-        }
     }
 }
 
@@ -125,7 +91,7 @@ mod tests {
         let mut updates = aggregator.process_events(stream);
 
         // Wait for some updates
-        while let Some(update) = updates.recv().await {
+        while let Some(update) = updates.next().await {
             println!("Update received: {:?}", update);
         }
 

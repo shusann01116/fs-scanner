@@ -11,4 +11,4 @@ mod test_tools;
 
 pub use disk_usage_monitor::DiskUsageMonitor;
 pub use error::ScannerError;
-pub use events::ScanEvent;
+pub use events::FileEvent;

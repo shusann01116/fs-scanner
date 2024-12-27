@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use disk_usage_monitor::DiskUsageMonitor;
+use disk_usage_monitor::{DiskUsageMonitor, FileEvent};
+use futures_util::StreamExt;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -36,13 +37,14 @@ async fn main() {
         println!("Watching for changes...");
         let mut updates = monitor.start().expect("Failed to start monitoring");
 
-        while let Some(update) = updates.recv().await {
-            let update = update;
-            println!(
-                "Change detected at '{}': new total size = {} bytes",
-                update.path.display(),
-                update.total_size
-            );
+        while let Some(update) = updates.next().await {
+            if let FileEvent::FileAdded { path, size } = update {
+                println!(
+                    "Change detected at '{}': new total size = {} bytes",
+                    path.display(),
+                    size
+                );
+            }
         }
     }
 }

@@ -6,7 +6,7 @@ use std::{
 
 use tokio::sync::mpsc;
 
-use crate::{error::ScannerError, events::ScanEvent, result::Result, streams::ScannerEventStream};
+use crate::{error::ScannerError, events::FileEvent, result::Result, streams::ScannerEventStream};
 
 #[derive(Default, Debug, Clone)]
 pub struct Scanner {
@@ -62,7 +62,7 @@ impl Scanner {
 
     async fn scan_directory<P: AsRef<Path>>(
         directory: P,
-        tx: mpsc::UnboundedSender<ScanEvent>,
+        tx: mpsc::UnboundedSender<FileEvent>,
     ) -> Result<()> {
         let files = fs::read_dir(directory)?;
 
@@ -73,7 +73,7 @@ impl Scanner {
 
             if metadata.is_file() {
                 let size = metadata.len();
-                tx.send(ScanEvent::FileFound {
+                tx.send(FileEvent::FileFound {
                     path: path.to_owned(),
                     size,
                 })?;
@@ -88,7 +88,7 @@ impl Scanner {
         Ok(())
     }
 
-    fn spawn_scan_directory<P: AsRef<Path>>(directory: P, tx: mpsc::UnboundedSender<ScanEvent>) {
+    fn spawn_scan_directory<P: AsRef<Path>>(directory: P, tx: mpsc::UnboundedSender<FileEvent>) {
         let directory = directory.as_ref().to_owned();
         let tx = tx.clone();
         tokio::spawn(async move {
@@ -100,7 +100,7 @@ impl Scanner {
 #[allow(unused)]
 async fn watch_fs_loop<P: AsRef<Path>>(
     directory: P,
-    tx: mpsc::UnboundedSender<ScanEvent>,
+    tx: mpsc::UnboundedSender<FileEvent>,
 ) -> Result<()> {
     todo!()
 }
@@ -134,7 +134,7 @@ mod test {
 
         let event = stream.next().await.expect("No event received");
         match event {
-            ScanEvent::FileFound { path, .. } => {
+            FileEvent::FileFound { path, .. } => {
                 assert_eq!(path.parent().unwrap(), dir.path());
             }
             _ => {

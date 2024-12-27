@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-#[derive(Debug)]
-/// ScanEvent is an event emitted by the scanner.
-pub enum ScanEvent {
+#[derive(Debug, Clone, PartialEq)]
+/// FileEvent is an event emitted by the scanner.
+pub enum FileEvent {
     /// Emitted when a file is found in the directory.
     FileFound {
         path: PathBuf,
