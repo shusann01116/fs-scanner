@@ -1,14 +1,15 @@
-pub mod aggregator;
-mod disk_usage_monitor;
+#![deny(unsafe_code)]
+
+mod aggregator;
 mod error;
-mod events;
+mod monitor;
 mod result;
 mod scanner;
-mod streams;
 
 #[cfg(test)]
 mod test_tools;
 
-pub use disk_usage_monitor::DiskUsageMonitor;
 pub use error::ScannerError;
-pub use events::FileEvent;
+pub use monitor::Monitor;
+// TODO: Replace with DiskUsageMonitor's Event (not implemented yet)
+pub use scanner::FileEvent;

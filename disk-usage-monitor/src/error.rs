@@ -3,7 +3,7 @@ use std::io;
 use thiserror::Error;
 use tokio::sync::mpsc;
 
-use crate::events::FileEvent;
+use crate::FileEvent;
 
 #[derive(Debug, Error)]
 pub enum ScannerError {

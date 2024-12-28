@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use disk_usage_monitor::{DiskUsageMonitor, FileEvent};
+use disk_usage_monitor::{FileEvent, Monitor};
 use futures_util::StreamExt;
 
 #[derive(Parser)]
@@ -20,13 +20,13 @@ struct Args {
 async fn main() {
     let args = Args::parse();
 
-    let mut monitor = DiskUsageMonitor::new().with_directory(&args.path);
+    let mut monitor = Monitor::new().with_directory(&args.path);
     if args.watch {
         monitor = monitor.watch_changes();
     }
 
     let mut updates = monitor.start().expect("Failed to start monitoring");
-
+    // FIXME: This loop finishes after the initial scan is complete, even if watching is enabled
     while let Some(update) = updates.next().await {
         match &update {
             FileEvent::InitialScanComplete => {
@@ -48,8 +48,9 @@ async fn main() {
 
     let total_size = monitor.get_directory_size(&args.path).await;
     println!(
-        "Total size of '{}': {} bytes",
+        "Total size of '{}': {} bytes ({:.2} GiB)",
         args.path.display(),
-        total_size
+        total_size,
+        total_size as f64 / 1024.0 / 1024.0 / 1024.0
     );
 }

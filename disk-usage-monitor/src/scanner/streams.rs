@@ -6,7 +6,7 @@ use std::{
 use futures_util::Stream;
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use crate::events::FileEvent;
+use super::events::FileEvent;
 
 #[derive(Debug)]
 pub struct ScannerEventStream {

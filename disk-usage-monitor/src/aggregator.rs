@@ -7,7 +7,7 @@ use std::{
 use futures_util::StreamExt;
 use tokio::sync::{mpsc, RwLock};
 
-use crate::{events::FileEvent, streams::ScannerEventStream};
+use crate::scanner::{FileEvent, ScannerEventStream};
 
 #[derive(Default, Debug, Clone)]
 pub struct Aggregator {

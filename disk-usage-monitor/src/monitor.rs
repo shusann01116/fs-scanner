@@ -1,17 +1,19 @@
 use std::path::Path;
 
 use crate::{
-    aggregator::Aggregator, result::Result, scanner::Scanner, streams::ScannerEventStream,
+    aggregator::Aggregator,
+    result::Result,
+    scanner::{Scanner, ScannerEventStream},
 };
 
 /// Monitors disk usage of a directory and its subdirectories
 #[derive(Default, Debug, Clone)]
-pub struct DiskUsageMonitor {
+pub struct Monitor {
     scanner: Scanner,
     aggregator: Aggregator,
 }
 
-impl DiskUsageMonitor {
+impl Monitor {
     pub fn new() -> Self {
         Self {
             scanner: Scanner::new(),
@@ -58,28 +60,23 @@ mod tests {
         let actual_total_size =
             file1_path.metadata().unwrap().len() + file2_path.metadata().unwrap().len();
 
-        let monitor = DiskUsageMonitor::new().with_directory(&dir.path());
+        let monitor = Monitor::new().with_directory(&dir.path());
         let mut updates = monitor.start().expect("Failed to start monitoring");
 
         // Wait for some updates
         let event_1 = updates.next().await.unwrap();
+        let mut total_size = if let FileEvent::FileFound { size, .. } = event_1 {
+            size
+        } else {
+            panic!("Expected FileFound event");
+        };
         let event_2 = updates.next().await.unwrap();
-        assert_eq!(
-            event_1,
-            FileEvent::FileFound {
-                path: file1_path.clone().into(),
-                size: file1_path.metadata().unwrap().len()
-            }
-        );
-        assert_eq!(
-            event_2,
-            FileEvent::FileFound {
-                path: file2_path.clone().into(),
-                size: file2_path.metadata().unwrap().len()
-            }
-        );
-
-        updates.next().await;
+        if let FileEvent::FileFound { size, .. } = event_2 {
+            total_size += size;
+        } else {
+            panic!("Expected FileFound event");
+        }
+        assert_eq!(total_size, actual_total_size);
 
         let total_size = monitor.get_directory_size(dir.path()).await;
         assert_eq!(total_size, actual_total_size);

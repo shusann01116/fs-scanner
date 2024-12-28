@@ -1,12 +1,16 @@
+mod events;
+mod streams;
+
 use std::{
     fs,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
+use crate::{result::Result, ScannerError};
+pub use events::FileEvent;
+pub use streams::ScannerEventStream;
 use tokio::sync::mpsc;
-
-use crate::{error::ScannerError, events::FileEvent, result::Result, streams::ScannerEventStream};
 
 #[derive(Default, Debug, Clone)]
 pub struct Scanner {
