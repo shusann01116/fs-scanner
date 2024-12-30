@@ -12,7 +12,7 @@ struct Args {
     path: PathBuf,
 
     /// Watch for changes
-    #[arg(short, long)]
+    #[arg(short, long, default_value_t = true)]
     watch: bool,
 }
 
@@ -26,7 +26,8 @@ async fn main() {
     }
 
     let mut updates = monitor.start().expect("Failed to start monitoring");
-    // FIXME: This loop finishes after the initial scan is complete, even if watching is enabled
+
+    // Updated loop to handle all rElevant events
     while let Some(update) = updates.next().await {
         match &update {
             FileEvent::InitialScanComplete => {
@@ -36,13 +37,21 @@ async fn main() {
                 }
             }
             FileEvent::FileFound { path, size } => {
+                println!("File found: '{}': size = {} bytes", path.display(), size);
+            }
+            FileEvent::FileAdded { path, size } => {
+                println!("File added: '{}': size = {} bytes", path.display(), size);
+            }
+            FileEvent::FileRemoved { path } => {
+                println!("File removed: '{}'", path.display());
+            }
+            FileEvent::FileModified { path, size } => {
                 println!(
-                    "Change detected at '{}': new total size = {} bytes",
+                    "File modified: '{}': new size = {} bytes",
                     path.display(),
                     size
                 );
             }
-            _ => {}
         }
     }
 

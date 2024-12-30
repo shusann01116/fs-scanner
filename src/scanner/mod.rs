@@ -9,8 +9,12 @@ use std::{
 
 use crate::{result::Result, ScannerError};
 pub use events::FileEvent;
+use notify::event::{CreateKind, EventKind, ModifyKind};
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use std::sync::mpsc as std_mpsc;
 pub use streams::ScannerEventStream;
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Default, Debug, Clone)]
 pub struct Scanner {
@@ -100,12 +104,63 @@ impl Scanner {
         });
     }
 
-    #[allow(unused)]
     async fn watch_fs_loop<P: AsRef<Path>>(
         directory: P,
-        tx: mpsc::UnboundedSender<FileEvent>,
+        tx: UnboundedSender<FileEvent>,
     ) -> Result<()> {
-        todo!()
+        let (notify_tx, notify_rx) = std_mpsc::channel();
+
+        // Initialize the watcher
+        let mut watcher: RecommendedWatcher = Watcher::new(notify_tx, notify::Config::default())
+            .map_err(|e| ScannerError::Other(anyhow::anyhow!(e)))?;
+
+        watcher
+            .watch(directory.as_ref(), RecursiveMode::Recursive)
+            .map_err(|e| ScannerError::Other(anyhow::anyhow!(e)))?;
+
+        // Keep watcher in scope to prevent it from being dropped
+        loop {
+            match notify_rx.recv() {
+                Ok(event) => {
+                    let event = match event {
+                        Ok(event) => event,
+                        Err(_) => continue,
+                    };
+
+                    match event.kind {
+                        EventKind::Create(CreateKind::File) => {
+                            for path in event.paths {
+                                if path.is_file() {
+                                    if let Ok(metadata) = path.metadata() {
+                                        let size = metadata.len();
+                                        tx.send(FileEvent::FileAdded { path, size }).unwrap();
+                                    }
+                                }
+                            }
+                        }
+                        EventKind::Modify(ModifyKind::Data(_)) => {
+                            for path in event.paths {
+                                if path.is_file() {
+                                    if let Ok(metadata) = path.metadata() {
+                                        let size = metadata.len();
+                                        let _ = tx.send(FileEvent::FileModified { path, size });
+                                    }
+                                }
+                            }
+                        }
+                        EventKind::Remove(_) => {
+                            for path in event.paths {
+                                let _ = tx.send(FileEvent::FileRemoved { path });
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+
+        Ok(())
     }
 }
 
