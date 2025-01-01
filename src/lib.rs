@@ -1,15 +1,11 @@
-#![deny(unsafe_code)]
-
-mod aggregator;
+mod core;
 mod error;
+pub mod event;
 mod monitor;
-mod result;
-mod scanner;
+mod stream;
 
-#[cfg(test)]
-mod test_tools;
+pub mod default;
 
-pub use error::ScannerError;
+pub(crate) use core::Result;
+pub use event::MonitorEvent;
 pub use monitor::Monitor;
-// TODO: Replace with DiskUsageMonitor's Event (not implemented yet)
-pub use scanner::FileEvent;

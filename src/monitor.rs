@@ -1,122 +1,83 @@
-use std::path::Path;
-
 use crate::{
-    aggregator::Aggregator,
-    result::Result,
-    scanner::{Scanner, ScannerEventStream},
+    core::{Aggregator, Result, Watcher},
+    error::Error,
+    stream::MonitorStream,
 };
+use std::{fmt::Debug, path::Path};
 
-/// Monitors disk usage of a directory and its subdirectories
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Default)]
 pub struct Monitor {
-    scanner: Scanner,
-    aggregator: Aggregator,
+    watcher: Option<Box<dyn Watcher>>,
+    aggregator: Option<Box<dyn Aggregator>>,
 }
 
 impl Monitor {
     pub fn new() -> Self {
         Self {
-            scanner: Scanner::new(),
-            aggregator: Aggregator::new(),
+            watcher: None,
+            aggregator: None,
         }
     }
 
-    /// Sets the directory to monitor
-    pub fn with_directory<P: AsRef<Path>>(mut self, directory: P) -> Self {
-        self.scanner = self.scanner.with_directory(directory);
+    pub fn watch<T: Watcher + 'static>(mut self, watcher: T) -> Self {
+        self.watcher = Some(Box::new(watcher));
         self
     }
 
-    /// Enables watching for filesystem changes
-    pub fn watch_changes(mut self) -> Self {
-        self.scanner = self.scanner.watch_changes();
+    pub fn aggregate<T: Aggregator + 'static>(mut self, aggregator: T) -> Self {
+        self.aggregator = Some(Box::new(aggregator));
         self
     }
 
-    /// Starts monitoring the directory and returns a stream of updates
-    pub fn start(&self) -> Result<ScannerEventStream> {
-        let stream = self.scanner.start()?;
-        Ok(self.aggregator.process_events(stream))
+    pub fn start(&mut self) -> Result<MonitorStream> {
+        if self.aggregator.is_none() || self.watcher.is_none() {
+            return Err(Error::FailedToStart(
+                "Aggregator or Watcher is not set".to_string(),
+            ));
+        }
+
+        let rx = self.watcher.as_mut().unwrap().start()?;
+        self.aggregator.as_mut().unwrap().start(rx)
     }
 
-    /// Returns the total size of all files under the specified directory
-    /// This method does not actually scan the directory, it just returns the size of the files that have been found by the scanner.
-    pub async fn get_directory_size<P: AsRef<Path>>(&self, directory: P) -> u64 {
-        self.aggregator.get_directory_size(directory).await
+    pub async fn get_directory_size(&self, path: impl AsRef<Path>) -> Result<u64> {
+        todo!()
     }
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use super::*;
-    use crate::{test_tools, FileEvent};
-    use futures_util::StreamExt;
+    use crate::default::{Aggregator, WatchConfig, Watcher};
+    use futures::executor::block_on_stream;
 
     #[tokio::test]
-    async fn test_disk_usage_monitoring() {
-        let dir = test_tools::setup_temp_dir();
-        let file1_path = test_tools::create_random_file(dir.path());
-        let file2_path = test_tools::create_random_file(dir.path());
-        let actual_total_size =
-            file1_path.metadata().unwrap().len() + file2_path.metadata().unwrap().len();
-
-        let monitor = Monitor::new().with_directory(&dir.path());
-        let mut updates = monitor.start().expect("Failed to start monitoring");
-
-        // Wait for some updates
-        let event_1 = updates.next().await.unwrap();
-        let mut total_size = if let FileEvent::FileFound { size, .. } = event_1 {
-            size
-        } else {
-            panic!("Expected FileFound event");
-        };
-        let event_2 = updates.next().await.unwrap();
-        if let FileEvent::FileFound { size, .. } = event_2 {
-            total_size += size;
-        } else {
-            panic!("Expected FileFound event");
-        }
-        assert_eq!(total_size, actual_total_size);
-
-        let total_size = monitor.get_directory_size(dir.path()).await;
-        assert_eq!(total_size, actual_total_size);
+    async fn err_no_aggregator() {
+        let mut monitor = Monitor::new().watch(Watcher::new(WatchConfig::default()));
+        let err = monitor.start().err().unwrap();
+        assert_eq!(
+            err.to_string(),
+            "Failed to start monitor: Aggregator or Watcher is not set"
+        );
     }
 
-    #[tokio::test(flavor = "multi_thread")]
-    async fn test_watch_monitoring() {
-        let dir = test_tools::setup_temp_dir();
-        let file1_path = test_tools::create_random_file(dir.path());
+    #[tokio::test]
+    async fn err_no_watcher() {
+        let mut monitor = Monitor::new().aggregate(Aggregator::new());
+        let err = monitor.start().err().unwrap();
+        assert_eq!(
+            err.to_string(),
+            "Failed to start monitor: Aggregator or Watcher is not set"
+        );
+    }
 
-        let monitor = Monitor::new().with_directory(&dir.path()).watch_changes();
-        let mut updates = monitor.start().expect("Failed to start monitoring");
-
-        // Wait for some updates
-        println!("waiting for initial scan complete");
-        let event_1 = updates.next().await.unwrap();
-        match event_1 {
-            FileEvent::FileFound { path, size } => {
-                assert_eq!(path, file1_path);
-                assert_eq!(size, file1_path.metadata().unwrap().len());
-            }
-            _ => panic!("Expected FileFound event"),
-        }
-
-        println!("waiting for initial scan complete");
-        let completed = updates.next().await.unwrap();
-        match completed {
-            FileEvent::InitialScanComplete => {}
-            _ => panic!("Expected InitialScanComplete event"),
-        }
-
-        // create a new file
-        let file2_path = test_tools::create_random_file(dir.path());
-        println!("waiting for file found");
-        let event_2 = updates.next().await.unwrap();
-        match event_2 {
-            FileEvent::FileFound { size, .. } => {
-                assert_eq!(size, file2_path.metadata().unwrap().len());
-            }
-            _ => panic!("Expected FileFound event"),
-        }
+    #[tokio::test]
+    async fn test_start() {
+        let mut monitor = Monitor::new()
+            .watch(Watcher::new(WatchConfig::default()))
+            .aggregate(Aggregator::new());
+        let stream = monitor.start().unwrap();
+        let mut iter = block_on_stream(stream);
+        assert!(iter.next().is_none());
     }
 }
