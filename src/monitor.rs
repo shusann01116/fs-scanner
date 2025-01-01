@@ -81,4 +81,42 @@ mod tests {
         let total_size = monitor.get_directory_size(dir.path()).await;
         assert_eq!(total_size, actual_total_size);
     }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_watch_monitoring() {
+        let dir = test_tools::setup_temp_dir();
+        let file1_path = test_tools::create_random_file(dir.path());
+
+        let monitor = Monitor::new().with_directory(&dir.path()).watch_changes();
+        let mut updates = monitor.start().expect("Failed to start monitoring");
+
+        // Wait for some updates
+        println!("waiting for initial scan complete");
+        let event_1 = updates.next().await.unwrap();
+        match event_1 {
+            FileEvent::FileFound { path, size } => {
+                assert_eq!(path, file1_path);
+                assert_eq!(size, file1_path.metadata().unwrap().len());
+            }
+            _ => panic!("Expected FileFound event"),
+        }
+
+        println!("waiting for initial scan complete");
+        let completed = updates.next().await.unwrap();
+        match completed {
+            FileEvent::InitialScanComplete => {}
+            _ => panic!("Expected InitialScanComplete event"),
+        }
+
+        // create a new file
+        let file2_path = test_tools::create_random_file(dir.path());
+        println!("waiting for file found");
+        let event_2 = updates.next().await.unwrap();
+        match event_2 {
+            FileEvent::FileFound { size, .. } => {
+                assert_eq!(size, file2_path.metadata().unwrap().len());
+            }
+            _ => panic!("Expected FileFound event"),
+        }
+    }
 }

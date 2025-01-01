@@ -46,10 +46,10 @@ impl Scanner {
             .as_ref()
             .ok_or(ScannerError::NoDirectorySpecified)?
             .clone();
-        let watch = self.watch;
         let (tx, rx) = mpsc::unbounded_channel();
         let event_stream = ScannerEventStream::new(rx);
 
+        let watch = self.watch;
         tokio::spawn(async move {
             // TODO: handle error properly
             Self::scan_directory(directory.as_ref(), tx.clone())
@@ -127,12 +127,14 @@ impl Scanner {
                         Err(_) => continue,
                     };
 
+                    dbg!(&event);
                     match event.kind {
                         EventKind::Create(CreateKind::File) => {
                             for path in event.paths {
                                 if path.is_file() {
                                     if let Ok(metadata) = path.metadata() {
                                         let size = metadata.len();
+                                        dbg!("FileEvent::FileAdded emitted: {:?}", &path);
                                         tx.send(FileEvent::FileAdded { path, size }).unwrap();
                                     }
                                 }
@@ -143,6 +145,7 @@ impl Scanner {
                                 if path.is_file() {
                                     if let Ok(metadata) = path.metadata() {
                                         let size = metadata.len();
+                                        dbg!("FileEvent::FileModified emitted: {:?}", &path);
                                         let _ = tx.send(FileEvent::FileModified { path, size });
                                     }
                                 }
@@ -150,6 +153,7 @@ impl Scanner {
                         }
                         EventKind::Remove(_) => {
                             for path in event.paths {
+                                dbg!("FileEvent::FileRemoved emitted: {:?}", &path);
                                 let _ = tx.send(FileEvent::FileRemoved { path });
                             }
                         }

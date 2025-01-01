@@ -48,6 +48,7 @@ impl Aggregator {
                     }
                     FileEvent::InitialScanComplete => {
                         // 初期スキャン完了時の処理が必要な場合はここに追加
+                        tx.send(event).unwrap();
                     }
                 }
             }
