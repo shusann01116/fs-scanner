@@ -10,13 +10,13 @@ pub struct Aggregator<'a> {
     rx: Option<Receiver<MonitorEvent<'a>>>,
 }
 
-impl<'a> Aggregator<'a> {
+impl Aggregator<'_> {
     pub fn new() -> Self {
         Self { rx: None }
     }
 }
 
-impl<'a> CoreAggregator for Aggregator<'a> {
+impl CoreAggregator for Aggregator<'_> {
     fn start(&mut self, rx: Receiver<MonitorEvent>) -> Result<MonitorStream> {
         todo!()
     }

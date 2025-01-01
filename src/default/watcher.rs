@@ -11,7 +11,7 @@ pub struct Watcher<'a> {
     receiver: Option<Receiver<MonitorEvent<'a>>>,
 }
 
-impl<'a> Watcher<'a> {
+impl Watcher<'_> {
     pub fn new(config: WatchConfig) -> Self {
         Self {
             config,
@@ -20,7 +20,7 @@ impl<'a> Watcher<'a> {
     }
 }
 
-impl<'a> CoreWatcher for Watcher<'a> {
+impl CoreWatcher for Watcher<'_> {
     fn start(&mut self) -> Result<Receiver<MonitorEvent>> {
         todo!()
     }
