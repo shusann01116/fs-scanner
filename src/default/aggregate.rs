@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use tokio::sync::mpsc::Receiver;
 
 use crate::{core::Aggregator as CoreAggregator, stream::MonitorStream};
@@ -16,6 +18,10 @@ impl<'a> Aggregator<'a> {
 
 impl<'a> CoreAggregator for Aggregator<'a> {
     fn start(&mut self, rx: Receiver<MonitorEvent>) -> Result<MonitorStream> {
+        todo!()
+    }
+
+    fn get_directory_size(&self, path: &Path) -> Result<u64> {
         todo!()
     }
 }

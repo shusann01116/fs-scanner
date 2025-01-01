@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, path::Path};
 
 use tokio::sync::mpsc::Receiver;
 
@@ -10,6 +10,7 @@ pub trait Watcher: Debug {
 
 pub trait Aggregator: Debug {
     fn start(&mut self, rx: Receiver<MonitorEvent>) -> Result<MonitorStream>;
+    fn get_directory_size(&self, path: &Path) -> Result<u64>;
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

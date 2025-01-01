@@ -30,18 +30,16 @@ impl Monitor {
     }
 
     pub fn start(&mut self) -> Result<MonitorStream> {
-        if self.aggregator.is_none() || self.watcher.is_none() {
-            return Err(Error::FailedToStart(
-                "Aggregator or Watcher is not set".to_string(),
-            ));
-        }
+        let aggregator = self.aggregator.as_mut().ok_or(Error::NoAggregator)?;
+        let watcher = self.watcher.as_mut().ok_or(Error::NoWatcher)?;
 
-        let rx = self.watcher.as_mut().unwrap().start()?;
-        self.aggregator.as_mut().unwrap().start(rx)
+        let rx = watcher.start()?;
+        aggregator.start(rx)
     }
 
     pub async fn get_directory_size(&self, path: impl AsRef<Path>) -> Result<u64> {
-        todo!()
+        let aggregator = self.aggregator.as_ref().ok_or(Error::NoAggregator)?;
+        aggregator.get_directory_size(path.as_ref())
     }
 }
 
