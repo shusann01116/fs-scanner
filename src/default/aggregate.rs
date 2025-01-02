@@ -6,17 +6,17 @@ use crate::{core::Aggregator as CoreAggregator, stream::MonitorStream};
 use crate::{MonitorEvent, Result};
 
 #[derive(Debug, Default)]
-pub struct Aggregator<'a> {
-    rx: Option<Receiver<MonitorEvent<'a>>>,
+pub struct Aggregator {
+    rx: Option<Receiver<MonitorEvent>>,
 }
 
-impl Aggregator<'_> {
+impl Aggregator {
     pub fn new() -> Self {
         Self { rx: None }
     }
 }
 
-impl CoreAggregator for Aggregator<'_> {
+impl CoreAggregator for Aggregator {
     fn start(&mut self, rx: Receiver<MonitorEvent>) -> Result<MonitorStream> {
         todo!()
     }

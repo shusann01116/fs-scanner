@@ -33,7 +33,9 @@ async fn main() {
                 MonitorEvent::DirectoryFound(path) => {
                     println!("Directory found: {}", path.display())
                 }
-                MonitorEvent::FileFound(path) => println!("File found: {}", path.display()),
+                MonitorEvent::FileFound { path, size } => {
+                    println!("File found: {} ({} bytes)", path.display(), size)
+                }
             }
         }
     }

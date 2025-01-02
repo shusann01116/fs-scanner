@@ -8,4 +8,6 @@ pub enum Error {
     NoAggregator,
     #[error("No watcher")]
     NoWatcher,
+    #[error("Root directory does not exist")]
+    RootDirectoryDoesNotExist,
 }
