@@ -12,6 +12,12 @@ pub struct MonitorStream {
     rx: Receiver<MonitorEvent>,
 }
 
+impl MonitorStream {
+    pub fn new(rx: Receiver<MonitorEvent>) -> Self {
+        Self { rx }
+    }
+}
+
 impl Stream for MonitorStream {
     type Item = MonitorEvent;
 

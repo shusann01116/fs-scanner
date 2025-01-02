@@ -69,7 +69,7 @@ mod test {
         );
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_start() {
         let mut monitor = Monitor::new()
             .watch(Watcher::new(WatchConfig::default()))

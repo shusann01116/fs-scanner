@@ -10,4 +10,6 @@ pub enum Error {
     NoWatcher,
     #[error("Root directory does not exist")]
     RootDirectoryDoesNotExist,
+    #[error("Other: {0}")]
+    Other(#[source] Box<dyn std::error::Error>),
 }
