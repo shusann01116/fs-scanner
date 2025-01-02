@@ -1,18 +1,15 @@
-use std::io;
-
 use thiserror::Error;
-use tokio::sync::mpsc;
-
-use crate::FileEvent;
 
 #[derive(Debug, Error)]
-pub enum ScannerError {
-    #[error("No directory specified")]
-    NoDirectorySpecified,
-    #[error("IO error: {0}")]
-    IoError(#[from] io::Error),
-    #[error("Channel error: {0}")]
-    ChannelError(#[from] mpsc::error::SendError<FileEvent>),
-    #[error("Other error: {0}")]
-    Other(#[from] anyhow::Error),
+pub enum Error {
+    #[error("Failed to start monitor: {0}")]
+    FailedToStart(String),
+    #[error("No aggregator")]
+    NoAggregator,
+    #[error("No watcher")]
+    NoWatcher,
+    #[error("Root directory does not exist")]
+    RootDirectoryDoesNotExist,
+    #[error("Other: {0}")]
+    Other(#[source] Box<dyn std::error::Error>),
 }
