@@ -13,6 +13,7 @@ jobs:
   check:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust toolchain
@@ -25,6 +26,7 @@ jobs:
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -50,6 +52,7 @@ jobs:
   msrv:
     name: Check MSRV
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: taiki-e/install-action@cargo-hack
@@ -59,6 +62,7 @@ jobs:
   latest-deps:
     name: Check Latest Dependencies
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
